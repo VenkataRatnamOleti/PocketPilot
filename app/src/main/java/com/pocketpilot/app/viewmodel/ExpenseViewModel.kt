@@ -1,41 +1,69 @@
 package com.pocketpilot.app.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.pocketpilot.app.data.local.AppDatabase
-import com.pocketpilot.app.data.local.ExpenseEntity
-import com.pocketpilot.app.data.repository.ExpenseRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 
-class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository: ExpenseRepository
+data class Expense(
+    val id: Int,
+    val category: String,
+    val description: String,
+    val amount: Double
+)
 
-    val allExpenses: StateFlow<List<ExpenseEntity>>
+class ExpenseViewModel : ViewModel() {
 
-    init {
-        val expenseDao = AppDatabase.getDatabase(application).expenseDao()
-        repository = ExpenseRepository(expenseDao)
-        allExpenses = repository.allExpenses.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+    var monthlyIncome by mutableStateOf(15000.0)
+
+    var upcomingExpenses by mutableStateOf(2000.0)
+
+    private var nextId = 6
+
+    private val _expenses = mutableStateListOf(
+        Expense(1, "Hostel", "Monthly hostel fee", 4000.0),
+        Expense(2, "Food", "Food & groceries", 2500.0),
+        Expense(3, "Travel", "Bus and auto", 1200.0),
+        Expense(4, "Shopping", "Personal shopping", 800.0),
+        Expense(5, "Subscriptions", "OTT / subscriptions", 500.0)
+    )
+
+    val expenses: List<Expense>
+        get() = _expenses
+
+    val totalExpenses: Double
+        get() = _expenses.sumOf { it.amount }
+
+    val availableToSpend: Double
+        get() = monthlyIncome - totalExpenses - upcomingExpenses
+
+    fun addExpense(
+        amount: Double,
+        category: String,
+        description: String
+    ) {
+
+        if (amount <= 0) return
+
+        _expenses.add(
+            Expense(
+                id = nextId++,
+                category = category,
+                description = description,
+                amount = amount
+            )
         )
     }
 
-    fun addExpense(amount: Double, category: String, description: String) {
-        viewModelScope.launch {
-            repository.insert(
-                ExpenseEntity(
-                    amount = amount,
-                    category = category,
-                    description = description,
-                    date = System.currentTimeMillis()
-                )
-            )
-        }
+    fun calculatePurchaseImpact(amount: Double): Double {
+
+        if (availableToSpend <= 0) return 100.0
+
+        return (amount / availableToSpend) * 100
+    }
+
+    fun canAfford(amount: Double): Boolean {
+        return amount <= availableToSpend
     }
 }

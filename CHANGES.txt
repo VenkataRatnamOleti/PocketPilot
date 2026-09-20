@@ -1,0 +1,6 @@
+Copy these files over your project (same folder structure), then:
+  DELETE  app/src/main/res/layout/activity_main.xml            (old support-library layout, unused)
+  DELETE  app/src/main/java/com/pocketpilot/app/data/local/PocketPilot.zip   (stray zip inside source folder)
+Unchanged and not included: AppDatabase.kt, ExpenseDao.kt, ExpenseEntity.kt, ExpenseRepository.kt,
+ExpenseViewModel.kt, AndroidManifest.xml, ExampleUnitTest.kt, colors.xml, strings.xml, settings.gradle.
+Then: File > Sync Project with Gradle Files, Build > Clean Project, Build > Rebuild Project.

@@ -2,27 +2,156 @@ package com.pocketpilot.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pocketpilot.app.ui.components.PocketPilotNavigationBar
+import com.pocketpilot.app.ui.components.PocketPilotScreen
+import com.pocketpilot.app.ui.screens.AddExpenseScreen
+import com.pocketpilot.app.ui.screens.AskPocketPilotScreen
 import com.pocketpilot.app.ui.screens.HomeScreen
+import com.pocketpilot.app.ui.screens.ScanReceiptScreen
+import com.pocketpilot.app.ui.theme.PocketPilotTheme
 import com.pocketpilot.app.viewmodel.ExpenseViewModel
 
 class MainActivity : ComponentActivity() {
-    private val expenseViewModel: ExpenseViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
+
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    HomeScreen(viewModel = expenseViewModel)
+
+            PocketPilotTheme {
+
+                PocketPilotApp()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PocketPilotApp(
+    expenseViewModel: ExpenseViewModel = viewModel()
+) {
+
+    // rememberSaveable keeps the current screen across rotation
+    var currentScreen by rememberSaveable {
+        mutableStateOf(PocketPilotScreen.HOME)
+    }
+
+    BackHandler(
+        enabled = currentScreen != PocketPilotScreen.HOME
+    ) {
+
+        currentScreen = PocketPilotScreen.HOME
+    }
+
+    Scaffold(
+
+        bottomBar = {
+
+            // Hide the bottom bar while typing a new expense
+            if (currentScreen != PocketPilotScreen.ADD_EXPENSE) {
+
+                PocketPilotNavigationBar(
+                    currentScreen = currentScreen,
+                    onScreenSelected = { selected ->
+                        currentScreen = selected
+                    }
+                )
+            }
+        }
+
+    ) { paddingValues ->
+
+        Box(
+            modifier = Modifier.padding(paddingValues)
+        ) {
+
+            when (currentScreen) {
+
+                PocketPilotScreen.HOME -> {
+
+                    HomeScreen(
+
+                        availableToSpend =
+                        expenseViewModel.availableToSpend,
+
+                        totalExpenses =
+                        expenseViewModel.totalExpenses,
+
+                        upcomingExpenses =
+                        expenseViewModel.upcomingExpenses,
+
+                        expenses =
+                        expenseViewModel.expenses,
+
+                        onAddExpense = {
+                            currentScreen =
+                                PocketPilotScreen.ADD_EXPENSE
+                        },
+
+                        onAskPocketPilot = {
+                            currentScreen =
+                                PocketPilotScreen.ASK
+                        }
+                    )
+                }
+
+                PocketPilotScreen.ADD_EXPENSE -> {
+
+                    AddExpenseScreen(
+
+                        onBack = {
+                            currentScreen =
+                                PocketPilotScreen.HOME
+                        },
+
+                        onExpenseAdded = { amount, category, description ->
+
+                            expenseViewModel.addExpense(
+                                amount,
+                                category,
+                                description
+                            )
+                        }
+                    )
+                }
+
+                PocketPilotScreen.SCAN -> {
+
+                    ScanReceiptScreen(
+                        onBack = {
+                            currentScreen =
+                                PocketPilotScreen.HOME
+                        }
+                    )
+                }
+
+                PocketPilotScreen.ASK -> {
+
+                    AskPocketPilotScreen(
+
+                        availableToSpend =
+                        expenseViewModel.availableToSpend,
+
+                        onBack = {
+                            currentScreen =
+                                PocketPilotScreen.HOME
+                        }
+                    )
                 }
             }
         }
