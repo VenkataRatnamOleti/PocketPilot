@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -112,7 +114,8 @@ fun PocketPilotApp(
 
                         onBudgetUpdated = { income, upcoming ->
                             expenseViewModel.updateBudget(income, upcoming)
-                        }
+                        },
+                        onDeleteExpense = expenseViewModel::deleteExpense
                     )
                 }
 
@@ -143,8 +146,8 @@ fun PocketPilotApp(
                             currentScreen =
                                 PocketPilotScreen.HOME
                         },
-                        onReceiptSaved = { amount, category, description ->
-                            expenseViewModel.addExpense(amount, category, description)
+                        onReceiptSaved = { amount, category, description, imagePath, merchant ->
+                            expenseViewModel.addExpense(amount, category, description, imagePath, merchant)
                         }
                     )
                 }
@@ -163,6 +166,16 @@ fun PocketPilotApp(
                         onBack = {
                             currentScreen =
                                 PocketPilotScreen.HOME
+                        },
+                        onAddExpense = { expense ->
+                            expenseViewModel.addExpense(
+                                expense.amount,
+                                expense.category,
+                                expense.description,
+                                expense.receiptImagePath,
+                                expense.merchant,
+                                expense.isProfit
+                            )
                         }
                     )
                 }

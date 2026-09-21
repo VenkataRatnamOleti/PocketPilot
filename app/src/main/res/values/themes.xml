@@ -2,4 +2,9 @@
 <resources>
     <!-- Compose draws the whole UI, so a plain framework theme without an action bar is enough. -->
     <style name="Theme.PocketPilot" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.PocketPilot.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#00796B</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/pocketpilot_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.PocketPilot</item>
+    </style>
 </resources>

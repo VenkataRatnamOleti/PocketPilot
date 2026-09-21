@@ -10,5 +10,8 @@ data class ExpenseEntity(
     val amount: Double,
     val category: String,
     val description: String,
-    val date: Long
+    val date: Long,
+    val receiptImagePath: String? = null,
+    val merchant: String = "",
+    val isProfit: Boolean = false
 )

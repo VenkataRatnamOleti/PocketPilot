@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import com.pocketpilot.app.viewmodel.Expense
 @Composable
 fun ExpenseCard(
     expense: Expense,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
 
@@ -52,6 +54,10 @@ fun ExpenseCard(
                 text = formatInr(expense.amount),
                 fontWeight = FontWeight.Bold
             )
+
+            onDelete?.let { delete ->
+                TextButton(onClick = delete) { Text("Delete") }
+            }
         }
     }
 }

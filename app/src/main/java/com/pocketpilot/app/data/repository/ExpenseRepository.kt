@@ -12,4 +12,6 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     }
 
     suspend fun isEmpty(): Boolean = expenseDao.count() == 0
+
+    suspend fun delete(id: Int) = expenseDao.deleteExpense(id)
 }

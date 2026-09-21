@@ -1,303 +1,41 @@
 package com.pocketpilot.app.ui.screens
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.speech.RecognizerIntent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.pocketpilot.app.domain.Qwen3Assistant
+import kotlinx.coroutines.launch
 import com.pocketpilot.app.domain.FinancialEngine
 import com.pocketpilot.app.ui.util.formatInr
 import com.pocketpilot.app.viewmodel.Expense
 import java.util.Locale
 
+private data class ChatMessage(val text: String, val fromUser: Boolean, val expense: Expense? = null)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AskPocketPilotScreen(
-    availableToSpend: Double,
-    upcomingExpenses: Double,
-    expenses: List<Expense>,
-    onBack: () -> Unit
-) {
-    var question by remember {
-        mutableStateOf("")
-    }
-
-    var answer by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    var voiceUnavailable by remember {
-        mutableStateOf(false)
-    }
-
-    val voice = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-
-        val words = result.data
-            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            ?.firstOrNull()
-
-        if (words != null) {
-            question = words
-        }
-    }
-
-    fun ask() {
-        val amount = Regex(
-            """(?:₹|rs\.?\s*)?\s*(\d+(?:\.\d{1,2})?)""",
-            RegexOption.IGNORE_CASE
-        )
-            .find(question)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.toDoubleOrNull()
-
-        val lower = question.lowercase(Locale.getDefault())
-
-        answer = when {
-
-            amount != null &&
-                    (
-                            lower.contains("afford") ||
-                                    lower.contains("buy") ||
-                                    lower.contains("purchase") ||
-                                    lower.contains("what if")
-                            ) -> {
-
-                val analysis = FinancialEngine.analyzePurchase(
-                    amount,
-                    availableToSpend,
-                    upcomingExpenses
-                )
-
-                "${analysis.message}\n\n" +
-                        "${analysis.recommendation}\n\n" +
-                        "Budget impact: ${
-                            String.format(
-                                Locale.US,
-                                "%.1f",
-                                analysis.impactPercent
-                            )
-                        }%."
-            }
-
-            lower.contains("food") -> {
-                FinancialEngine.foodInsight(expenses)
-            }
-
-            lower.contains("spend") ||
-                    lower.contains("expense") -> {
-
-                "You have spent ${
-                    formatInr(expenses.sumOf { it.amount })
-                } so far. ${
-                    formatInr(availableToSpend)
-                } remains after planned commitments."
-            }
-
-            else -> {
-                "Try asking: “Can I afford ₹1,800?”, " +
-                        "“How much did I spend on food?”, or " +
-                        "“What if I buy this for ₹5,000?”"
-            }
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Ask PocketPilot")
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            Text(
-                text = "Your money decision co-pilot",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor =
-                    MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-
-                Column(
-                    modifier = Modifier.padding(18.dp)
-                ) {
-
-                    Text("Available to spend")
-
-                    Text(
-                        text = formatInr(availableToSpend),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = question,
-
-                onValueChange = {
-                    question = it
-                    answer = null
-                },
-
-                modifier = Modifier.fillMaxWidth(),
-
-                label = {
-                    Text("Ask a question")
-                },
-
-                placeholder = {
-                    Text("Can I afford ₹1,800?")
-                },
-
-                singleLine = false,
-                maxLines = 3,
-
-                trailingIcon = {
-
-                    IconButton(
-                        onClick = {
-
-                            try {
-
-                                val intent = Intent(
-                                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH
-                                )
-                                    .putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                    )
-                                    .putExtra(
-                                        RecognizerIntent.EXTRA_PROMPT,
-                                        "Ask PocketPilot about your budget"
-                                    )
-
-                                voice.launch(intent)
-
-                            } catch (
-                                _: ActivityNotFoundException
-                            ) {
-
-                                voiceUnavailable = true
-                            }
-                        }
-                    ) {
-
-                        Text("Voice")
-                    }
-                }
-            )
-
-            if (voiceUnavailable) {
-
-                Text(
-                    text = "Speech recognition is unavailable on this device. " +
-                            "You can type your question instead.",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Button(
-                onClick = {
-                    ask()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = question.isNotBlank()
-            ) {
-
-                Text("Ask PocketPilot")
-            }
-
-            answer?.let { result ->
-
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Column(
-                        modifier = Modifier.padding(18.dp)
-                    ) {
-
-                        Text(
-                            text = "PocketPilot says",
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
-
-                        Text(result)
-                    }
-                }
-            }
-
-            Text(
-                text = "PocketPilot provides budgeting guidance, " +
-                        "not financial or investment advice.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+fun AskPocketPilotScreen(availableToSpend: Double, upcomingExpenses: Double, expenses: List<Expense>, onBack: () -> Unit, onAddExpense: (Expense) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    var modelStatus by remember { mutableStateOf("No Qwen3 model selected") }
+    var generating by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val assistant = remember { Qwen3Assistant(context) }
+    val scope = rememberCoroutineScope()
+    val messages = remember { mutableStateListOf(ChatMessage("Hi, I’m PocketPilot. Ask about a purchase, spending, or send an expense into your plan.", false)) }
+    fun reply(question: String): String { val amount=Regex("(?:₹|rs\\.?\\s*)?\\s*(\\d+(?:\\.\\d{1,2})?)",RegexOption.IGNORE_CASE).find(question)?.groupValues?.getOrNull(1)?.toDoubleOrNull(); val lower=question.lowercase(Locale.getDefault()); return when { amount != null && listOf("afford","buy","purchase","what if").any(lower::contains) -> FinancialEngine.analyzePurchase(amount,availableToSpend,upcomingExpenses).let { "${it.message}\n\n${it.recommendation}" }; lower.contains("food") -> FinancialEngine.foodInsight(expenses); else -> "Your verified balance is ${formatInr(availableToSpend)} after ${formatInr(upcomingExpenses)} of upcoming commitments. Qwen3 local-model responses will use this same verified context." } }
+    val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) scope.launch { modelStatus = "Loading Qwen3 model…"; try { modelStatus = assistant.importAndLoad(uri) } catch (error: Exception) { modelStatus = error.message ?: "Could not load model." } } }
+    Scaffold(topBar={TopAppBar(title={Text("Ask PocketPilot")},navigationIcon={TextButton(onClick=onBack){Text("Back")}},actions={TextButton(onClick={modelPicker.launch("application/octet-stream")}){Text("Model")}})}) { padding -> Column(Modifier.fillMaxSize().padding(padding)) {
+        Text(modelStatus, Modifier.padding(horizontal=16.dp, vertical=6.dp), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) { items(messages) { message -> Column(Modifier.fillMaxWidth(),horizontalAlignment=if(message.fromUser) Alignment.End else Alignment.Start) { Card(colors=CardDefaults.cardColors(containerColor=if(message.fromUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),modifier=Modifier.widthIn(max=320.dp)){Text(message.text,Modifier.padding(12.dp))}; message.expense?.let { expense -> TextButton(onClick={onAddExpense(expense)}){Text("Add ${expense.description} to expenses")}} } } }
+        Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically) { OutlinedTextField(text,{text=it},Modifier.weight(1f),placeholder={Text("Can I afford ₹1,800?")},singleLine=true); Spacer(Modifier.width(8.dp)); Button(enabled=!generating,onClick={if(text.isNotBlank()){ val question=text; messages+=ChatMessage(question,true); text=""; if(assistant.modelName == null) messages+=ChatMessage(reply(question),false) else scope.launch { generating=true; val response=StringBuilder(); try { assistant.answer(question,availableToSpend,upcomingExpenses,expenses).collect { token -> response.append(token); if(messages.lastOrNull()?.fromUser == false) messages[messages.lastIndex]=ChatMessage(response.toString(),false) else messages+=ChatMessage(response.toString(),false) } } catch(error:Exception) { messages+=ChatMessage(error.message ?: "Qwen3 could not respond.",false) } finally { generating=false } } }}){Text(if(generating) "…" else "Send")} }
+        if(expenses.isNotEmpty()) TextButton(onClick={messages+=ChatMessage("Review this recent transaction:",false,expenses.first())},Modifier.padding(start=12.dp,bottom=8.dp)){Text("Review latest expense")}
+    } }
 }
