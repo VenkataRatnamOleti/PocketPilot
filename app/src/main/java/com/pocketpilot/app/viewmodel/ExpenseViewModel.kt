@@ -1,69 +1,67 @@
 package com.pocketpilot.app.viewmodel
 
+import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.pocketpilot.app.data.local.AppDatabase
+import com.pocketpilot.app.data.local.ExpenseEntity
+import com.pocketpilot.app.data.repository.ExpenseRepository
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
-data class Expense(
-    val id: Int,
-    val category: String,
-    val description: String,
-    val amount: Double
-)
+data class Expense(val id: Int, val category: String, val description: String, val amount: Double, val date: Long)
 
-class ExpenseViewModel : ViewModel() {
+class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = ExpenseRepository(AppDatabase.getDatabase(application).expenseDao())
+    private val preferences = application.getSharedPreferences("pocket_pilot_settings", Context.MODE_PRIVATE)
 
-    var monthlyIncome by mutableStateOf(15000.0)
+    var monthlyIncome by mutableStateOf(preferences.getFloat("income", 15000f).toDouble())
+        private set
+    var upcomingExpenses by mutableStateOf(preferences.getFloat("upcoming", 2000f).toDouble())
+        private set
+    var expenses by mutableStateOf<List<Expense>>(emptyList())
+        private set
 
-    var upcomingExpenses by mutableStateOf(2000.0)
+    val totalExpenses: Double get() = expenses.sumOf { it.amount }
+    val availableToSpend: Double get() = monthlyIncome - totalExpenses - upcomingExpenses
 
-    private var nextId = 6
+    init {
+        viewModelScope.launch {
+            if (repository.isEmpty()) seedDemoData()
+            repository.allExpenses.collect { records ->
+                expenses = records.map { Expense(it.id, it.category, it.description, it.amount, it.date) }
+            }
+        }
+    }
 
-    private val _expenses = mutableStateListOf(
-        Expense(1, "Hostel", "Monthly hostel fee", 4000.0),
-        Expense(2, "Food", "Food & groceries", 2500.0),
-        Expense(3, "Travel", "Bus and auto", 1200.0),
-        Expense(4, "Shopping", "Personal shopping", 800.0),
-        Expense(5, "Subscriptions", "OTT / subscriptions", 500.0)
-    )
+    fun updateBudget(income: Double, upcoming: Double) {
+        if (income < 0 || upcoming < 0) return
+        monthlyIncome = income
+        upcomingExpenses = upcoming
+        preferences.edit().putFloat("income", income.toFloat()).putFloat("upcoming", upcoming.toFloat()).apply()
+    }
 
-    val expenses: List<Expense>
-        get() = _expenses
-
-    val totalExpenses: Double
-        get() = _expenses.sumOf { it.amount }
-
-    val availableToSpend: Double
-        get() = monthlyIncome - totalExpenses - upcomingExpenses
-
-    fun addExpense(
-        amount: Double,
-        category: String,
-        description: String
-    ) {
-
+    fun addExpense(amount: Double, category: String, description: String, date: Long = System.currentTimeMillis()) {
         if (amount <= 0) return
-
-        _expenses.add(
-            Expense(
-                id = nextId++,
-                category = category,
-                description = description,
-                amount = amount
-            )
-        )
+        viewModelScope.launch {
+            repository.insert(ExpenseEntity(amount = amount, category = category.trim().ifBlank { "Other" }, description = description.trim().ifBlank { category }, date = date))
+        }
     }
 
-    fun calculatePurchaseImpact(amount: Double): Double {
-
-        if (availableToSpend <= 0) return 100.0
-
-        return (amount / availableToSpend) * 100
+    private suspend fun seedDemoData() {
+        val now = System.currentTimeMillis()
+        listOf(
+            ExpenseEntity(amount = 4000.0, category = "Hostel", description = "Monthly hostel fee", date = now - 8 * DAY),
+            ExpenseEntity(amount = 650.0, category = "Food", description = "Groceries", date = now - 4 * DAY),
+            ExpenseEntity(amount = 420.0, category = "Travel", description = "Bus and auto", date = now - 2 * DAY),
+            ExpenseEntity(amount = 800.0, category = "Shopping", description = "Personal shopping", date = now - DAY),
+            ExpenseEntity(amount = 249.0, category = "Subscriptions", description = "Music subscription", date = now)
+        ).forEach { repository.insert(it) }
     }
 
-    fun canAfford(amount: Double): Boolean {
-        return amount <= availableToSpend
-    }
+    private companion object { const val DAY = 24L * 60L * 60L * 1000L }
 }

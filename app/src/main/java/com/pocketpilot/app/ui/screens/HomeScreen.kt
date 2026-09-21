@@ -14,14 +14,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.QuestionAnswer
-import androidx.compose.material3.Button
+import androidx.compose.material3.*
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +35,7 @@ import com.pocketpilot.app.ui.components.SummaryCard
 import com.pocketpilot.app.ui.util.formatInr
 import com.pocketpilot.app.viewmodel.Expense
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     availableToSpend: Double,
@@ -39,11 +43,16 @@ fun HomeScreen(
     upcomingExpenses: Double,
     expenses: List<Expense>,
     onAddExpense: () -> Unit,
-    onAskPocketPilot: () -> Unit
+    onAskPocketPilot: () -> Unit,
+    monthlyIncome: Double,
+    onBudgetUpdated: (Double, Double) -> Unit
 ) {
 
     // Newest expense first. Reading the list here makes Home recompose when it changes.
     val recentFirst = expenses.reversed()
+    var showBudgetEditor by remember { mutableStateOf(false) }
+    var incomeInput by remember { mutableStateOf(monthlyIncome.toInt().toString()) }
+    var upcomingInput by remember { mutableStateOf(upcomingExpenses.toInt().toString()) }
 
     Surface(
         modifier = Modifier.fillMaxSize()
@@ -86,6 +95,12 @@ fun HomeScreen(
                 }
 
                 item {
+                    OutlinedButton(onClick = { showBudgetEditor = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Update monthly plan")
+                    }
+                }
+
+                item {
 
                     BalanceCard(
                         availableToSpend = availableToSpend
@@ -119,13 +134,6 @@ fun HomeScreen(
                         onClick = onAskPocketPilot,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-
-                        Icon(
-                            imageVector = Icons.Default.QuestionAnswer,
-                            contentDescription = null
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
 
                         Text("Can I afford this?")
                     }
@@ -175,6 +183,28 @@ fun HomeScreen(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Add expense"
+                )
+            }
+
+            if (showBudgetEditor) {
+                AlertDialog(
+                    onDismissRequest = { showBudgetEditor = false },
+                    title = { Text("Monthly plan") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(incomeInput, { incomeInput = it }, label = { Text("Monthly income (₹)") }, singleLine = true)
+                            OutlinedTextField(upcomingInput, { upcomingInput = it }, label = { Text("Upcoming commitments (₹)") }, singleLine = true)
+                        }
+                    },
+                    confirmButton = { TextButton(onClick = {
+                        val income = incomeInput.toDoubleOrNull()
+                        val upcoming = upcomingInput.toDoubleOrNull()
+                        if (income != null && upcoming != null && income >= 0 && upcoming >= 0) {
+                            onBudgetUpdated(income, upcoming)
+                            showBudgetEditor = false
+                        }
+                    }) { Text("Save") } },
+                    dismissButton = { TextButton(onClick = { showBudgetEditor = false }) { Text("Cancel") } }
                 )
             }
         }

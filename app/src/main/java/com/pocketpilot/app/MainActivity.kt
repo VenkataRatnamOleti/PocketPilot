@@ -106,6 +106,12 @@ fun PocketPilotApp(
                         onAskPocketPilot = {
                             currentScreen =
                                 PocketPilotScreen.ASK
+                        },
+
+                        monthlyIncome = expenseViewModel.monthlyIncome,
+
+                        onBudgetUpdated = { income, upcoming ->
+                            expenseViewModel.updateBudget(income, upcoming)
                         }
                     )
                 }
@@ -136,6 +142,9 @@ fun PocketPilotApp(
                         onBack = {
                             currentScreen =
                                 PocketPilotScreen.HOME
+                        },
+                        onReceiptSaved = { amount, category, description ->
+                            expenseViewModel.addExpense(amount, category, description)
                         }
                     )
                 }
@@ -146,6 +155,10 @@ fun PocketPilotApp(
 
                         availableToSpend =
                         expenseViewModel.availableToSpend,
+
+                        upcomingExpenses = expenseViewModel.upcomingExpenses,
+
+                        expenses = expenseViewModel.expenses,
 
                         onBack = {
                             currentScreen =

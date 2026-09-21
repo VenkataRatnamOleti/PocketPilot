@@ -10,4 +10,6 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun insert(expense: ExpenseEntity) {
         expenseDao.insertExpense(expense)
     }
+
+    suspend fun isEmpty(): Boolean = expenseDao.count() == 0
 }

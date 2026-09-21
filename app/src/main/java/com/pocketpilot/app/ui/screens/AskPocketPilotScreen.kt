@@ -1,5 +1,10 @@
 package com.pocketpilot.app.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -30,46 +34,116 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.pocketpilot.app.domain.FinancialEngine
 import com.pocketpilot.app.ui.util.formatInr
+import com.pocketpilot.app.viewmodel.Expense
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AskPocketPilotScreen(
     availableToSpend: Double,
+    upcomingExpenses: Double,
+    expenses: List<Expense>,
     onBack: () -> Unit
 ) {
-
-    var amount by remember {
+    var question by remember {
         mutableStateOf("")
     }
 
-    var result by remember {
+    var answer by remember {
         mutableStateOf<String?>(null)
     }
 
-    var impact by remember {
-        mutableStateOf(0.0)
+    var voiceUnavailable by remember {
+        mutableStateOf(false)
+    }
+
+    val voice = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+
+        val words = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+
+        if (words != null) {
+            question = words
+        }
+    }
+
+    fun ask() {
+        val amount = Regex(
+            """(?:₹|rs\.?\s*)?\s*(\d+(?:\.\d{1,2})?)""",
+            RegexOption.IGNORE_CASE
+        )
+            .find(question)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toDoubleOrNull()
+
+        val lower = question.lowercase(Locale.getDefault())
+
+        answer = when {
+
+            amount != null &&
+                    (
+                            lower.contains("afford") ||
+                                    lower.contains("buy") ||
+                                    lower.contains("purchase") ||
+                                    lower.contains("what if")
+                            ) -> {
+
+                val analysis = FinancialEngine.analyzePurchase(
+                    amount,
+                    availableToSpend,
+                    upcomingExpenses
+                )
+
+                "${analysis.message}\n\n" +
+                        "${analysis.recommendation}\n\n" +
+                        "Budget impact: ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                analysis.impactPercent
+                            )
+                        }%."
+            }
+
+            lower.contains("food") -> {
+                FinancialEngine.foodInsight(expenses)
+            }
+
+            lower.contains("spend") ||
+                    lower.contains("expense") -> {
+
+                "You have spent ${
+                    formatInr(expenses.sumOf { it.amount })
+                } so far. ${
+                    formatInr(availableToSpend)
+                } remains after planned commitments."
+            }
+
+            else -> {
+                "Try asking: “Can I afford ₹1,800?”, " +
+                        "“How much did I spend on food?”, or " +
+                        "“What if I buy this for ₹5,000?”"
+            }
+        }
     }
 
     Scaffold(
-
         topBar = {
-
             TopAppBar(
-
                 title = {
                     Text("Ask PocketPilot")
                 },
-
                 navigationIcon = {
-
                     IconButton(
                         onClick = onBack
                     ) {
-
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back"
@@ -78,35 +152,28 @@ fun AskPocketPilotScreen(
                 }
             )
         }
-
     ) { paddingValues ->
 
         Column(
-
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
-
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
             Text(
-                text = "Can I afford this?",
+                text = "Your money decision co-pilot",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
 
-            Text(
-                text = "Enter the amount of the purchase and PocketPilot will check it against your current discretionary budget."
-            )
-
             Card(
                 modifier = Modifier.fillMaxWidth(),
-
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor =
+                    MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
 
@@ -114,9 +181,7 @@ fun AskPocketPilotScreen(
                     modifier = Modifier.padding(18.dp)
                 ) {
 
-                    Text(
-                        text = "Available to spend"
-                    )
+                    Text("Available to spend")
 
                     Text(
                         text = formatInr(availableToSpend),
@@ -127,75 +192,83 @@ fun AskPocketPilotScreen(
             }
 
             OutlinedTextField(
-                value = amount,
+                value = question,
 
-                onValueChange = { input ->
-
-                    // Allow only digits and one decimal point
-                    val isValid =
-                        input.all { it.isDigit() || it == '.' } &&
-                                input.count { it == '.' } <= 1
-
-                    if (isValid) {
-                        amount = input
-
-                        // The old answer no longer matches the amount being typed
-                        result = null
-                    }
+                onValueChange = {
+                    question = it
+                    answer = null
                 },
 
                 modifier = Modifier.fillMaxWidth(),
 
                 label = {
-                    Text("Purchase amount (₹)")
+                    Text("Ask a question")
                 },
 
-                singleLine = true,
+                placeholder = {
+                    Text("Can I afford ₹1,800?")
+                },
 
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal
-                )
+                singleLine = false,
+                maxLines = 3,
+
+                trailingIcon = {
+
+                    IconButton(
+                        onClick = {
+
+                            try {
+
+                                val intent = Intent(
+                                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                                )
+                                    .putExtra(
+                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                    )
+                                    .putExtra(
+                                        RecognizerIntent.EXTRA_PROMPT,
+                                        "Ask PocketPilot about your budget"
+                                    )
+
+                                voice.launch(intent)
+
+                            } catch (
+                                _: ActivityNotFoundException
+                            ) {
+
+                                voiceUnavailable = true
+                            }
+                        }
+                    ) {
+
+                        Text("Voice")
+                    }
+                }
             )
 
-            Button(
+            if (voiceUnavailable) {
 
-                onClick = {
-
-                    val purchaseAmount =
-                        amount.toDoubleOrNull() ?: 0.0
-
-                    if (purchaseAmount > 0) {
-
-                        impact =
-                            if (availableToSpend > 0) {
-                                (purchaseAmount / availableToSpend) * 100
-                            } else {
-                                100.0
-                            }
-
-                        result =
-                            if (purchaseAmount <= availableToSpend) {
-
-                                "You can afford this purchase based on your current budget. You would have approximately ${
-                                    formatInr(availableToSpend - purchaseAmount)
-                                } left."
-
-                            } else {
-
-                                "This purchase would exceed your current discretionary budget by ${
-                                    formatInr(purchaseAmount - availableToSpend)
-                                }. Consider postponing it or reducing another expense."
-                            }
-                    }
-                },
-
-                modifier = Modifier.fillMaxWidth()
-            ) {
-
-                Text("Analyze Purchase")
+                Text(
+                    text = "Speech recognition is unavailable on this device. " +
+                            "You can type your question instead.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
-            result?.let { message ->
+            Button(
+                onClick = {
+                    ask()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = question.isNotBlank()
+            ) {
+
+                Text("Ask PocketPilot")
+            }
+
+            answer?.let { result ->
 
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -214,25 +287,17 @@ fun AskPocketPilotScreen(
                             modifier = Modifier.height(8.dp)
                         )
 
-                        Text(message)
-
-                        Spacer(
-                            modifier = Modifier.height(12.dp)
-                        )
-
-                        Text(
-                            text = "Budget impact: ${
-                                String.format(
-                                    Locale.US,
-                                    "%.1f",
-                                    impact
-                                )
-                            }%",
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text(result)
                     }
                 }
             }
+
+            Text(
+                text = "PocketPilot provides budgeting guidance, " +
+                        "not financial or investment advice.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

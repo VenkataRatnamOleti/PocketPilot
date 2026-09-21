@@ -6,10 +6,11 @@ A phone-first AI financial assistant MVP built natively for Android using Kotlin
 
 ## 🚀 Features
 
-- **Expense Tracking:** View real-time logged expenses with categories, descriptions, and totals.
-- **Offline-First Architecture:** Local data persistence powered by Room Database.
-- **Reactive UI:** Modern Material 3 interface built with Jetpack Compose, updating instantly via Kotlin `StateFlow`.
-- **Clean Architecture (MVVM):** Structured separation of concerns between UI, ViewModel, Repository, and Data sources.
+- **Monthly plan:** Set income and upcoming commitments; the safe-to-spend figure updates instantly.
+- **Expense tracking:** Add manual expenses or capture a receipt and confirm its merchant, category, and total.
+- **Voice questions:** Use the microphone to ask affordability, spending, and food-spend questions.
+- **What-if analysis:** Ask “Can I afford ₹1,800?” or “What if I buy this for ₹5,000?” for a transparent budget impact and recommendation.
+- **Offline-first:** Expenses and plan settings persist locally; no account, API key, or network connection is required.
 
 ---
 
@@ -42,3 +43,18 @@ com.pocketpilot.app/
 ├── viewmodel/
 │   └── ExpenseViewModel.kt      # State management and UI logic
 └── MainActivity.kt              # App entry point
+```
+
+## Run it
+
+1. Open `C:\Users\venka\StudioProjects\PocketPilot` in Android Studio.
+2. Select an Android emulator or a physical device running Android 7.0+.
+3. Press **Run**. Grant camera permission when using receipt capture; speech recognition is provided by the device's installed speech service.
+4. On Home, set the monthly plan, add an expense, then try the Scan and Ask AI tabs.
+
+## Demo script
+
+1. Update the monthly plan to ₹15,000 income and ₹2,000 upcoming commitments.
+2. Scan a receipt, review its fields, and save it as Food.
+3. Ask: “Can I afford ₹1,800?” and show the remaining buffer and impact.
+4. Ask: “How much did I spend on food?” to show category-aware guidance.
