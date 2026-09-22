@@ -34,13 +34,15 @@ import com.pocketpilot.app.viewmodel.Expense
 fun HomeScreen(
     availableToSpend: Double,
     totalExpenses: Double,
+    totalProfit: Double,
     upcomingExpenses: Double,
     expenses: List<Expense>,
     onAddExpense: () -> Unit,
     onAskPocketPilot: () -> Unit,
     monthlyIncome: Double,
     onBudgetUpdated: (Double, Double) -> Unit,
-    onDeleteExpense: (Int) -> Unit
+    onDeleteExpense: (Int) -> Unit,
+    onExpenseSelected: (Expense) -> Unit
 ) {
 
     // Newest expense first. Reading the list here makes Home recompose when it changes.
@@ -111,7 +113,6 @@ fun HomeScreen(
                 }
 
                 item {
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -129,6 +130,14 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                }
+
+                item {
+                    SummaryCard(
+                        title = "Profit / income",
+                        value = formatInr(totalProfit),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 item {
@@ -171,7 +180,8 @@ fun HomeScreen(
 
                         ExpenseCard(
                             expense = expense,
-                            onDelete = { onDeleteExpense(expense.id) }
+                            onDelete = { onDeleteExpense(expense.id) },
+                            onClick = { onExpenseSelected(expense) }
                         )
                     }
                 }

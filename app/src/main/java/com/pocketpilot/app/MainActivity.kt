@@ -21,6 +21,9 @@ import com.pocketpilot.app.ui.components.PocketPilotScreen
 import com.pocketpilot.app.ui.screens.AddExpenseScreen
 import com.pocketpilot.app.ui.screens.AskPocketPilotScreen
 import com.pocketpilot.app.ui.screens.HomeScreen
+import com.pocketpilot.app.ui.screens.CalendarScreen
+import com.pocketpilot.app.ui.screens.ExpenseDetailScreen
+import com.pocketpilot.app.ui.screens.PeopleScreen
 import com.pocketpilot.app.ui.screens.ScanReceiptScreen
 import com.pocketpilot.app.ui.theme.PocketPilotTheme
 import com.pocketpilot.app.viewmodel.ExpenseViewModel
@@ -52,12 +55,14 @@ fun PocketPilotApp(
     var currentScreen by rememberSaveable {
         mutableStateOf(PocketPilotScreen.HOME)
     }
+    var selectedExpenseId by rememberSaveable { mutableStateOf<Int?>(null) }
 
     BackHandler(
         enabled = currentScreen != PocketPilotScreen.HOME
     ) {
 
         currentScreen = PocketPilotScreen.HOME
+        selectedExpenseId = null
     }
 
     Scaffold(
@@ -94,6 +99,9 @@ fun PocketPilotApp(
                         totalExpenses =
                         expenseViewModel.totalExpenses,
 
+                        totalProfit =
+                        expenseViewModel.totalProfit,
+
                         upcomingExpenses =
                         expenseViewModel.upcomingExpenses,
 
@@ -116,8 +124,21 @@ fun PocketPilotApp(
                             expenseViewModel.updateBudget(income, upcoming)
                         },
                         onDeleteExpense = expenseViewModel::deleteExpense
+                        ,onExpenseSelected = { selectedExpenseId = it.id }
                     )
                 }
+
+                PocketPilotScreen.CALENDAR -> CalendarScreen(
+                    expenses = expenseViewModel.expenses,
+                    onExpenseSelected = { selectedExpenseId = it.id }
+                )
+
+                PocketPilotScreen.PEOPLE -> PeopleScreen(
+                    loans = expenseViewModel.loans,
+                    onAddLoan = expenseViewModel::addLoan,
+                    onDeleteLoan = expenseViewModel::deleteLoan,
+                    onSettleLoan = expenseViewModel::setLoanSettled
+                )
 
                 PocketPilotScreen.ADD_EXPENSE -> {
 
@@ -128,12 +149,13 @@ fun PocketPilotApp(
                                 PocketPilotScreen.HOME
                         },
 
-                        onExpenseAdded = { amount, category, description ->
+                        onExpenseAdded = { amount, category, description, isProfit ->
 
                             expenseViewModel.addExpense(
                                 amount,
                                 category,
-                                description
+                                description,
+                                isProfit = isProfit
                             )
                         }
                     )
@@ -176,6 +198,19 @@ fun PocketPilotApp(
                                 expense.merchant,
                                 expense.isProfit
                             )
+                        }
+                    )
+                }
+            }
+
+            selectedExpenseId?.let { id ->
+                expenseViewModel.expenses.firstOrNull { it.id == id }?.let { expense ->
+                    ExpenseDetailScreen(
+                        expense = expense,
+                        onBack = { selectedExpenseId = null },
+                        onDelete = {
+                            expenseViewModel.deleteExpense(expense.id)
+                            selectedExpenseId = null
                         }
                     )
                 }

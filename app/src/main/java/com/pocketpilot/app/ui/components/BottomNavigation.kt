@@ -2,7 +2,9 @@ package com.pocketpilot.app.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -12,6 +14,8 @@ import androidx.compose.runtime.Composable
 
 enum class PocketPilotScreen {
     HOME,
+    CALENDAR,
+    PEOPLE,
     ADD_EXPENSE,
     SCAN,
     ASK
@@ -47,6 +51,30 @@ fun PocketPilotNavigationBar(
                 )
             },
             label = { Text("Scan") }
+        )
+
+        NavigationBarItem(
+            selected = currentScreen == PocketPilotScreen.CALENDAR,
+            onClick = { onScreenSelected(PocketPilotScreen.CALENDAR) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "Calendar"
+                )
+            },
+            label = { Text("Calendar") }
+        )
+
+        NavigationBarItem(
+            selected = currentScreen == PocketPilotScreen.PEOPLE,
+            onClick = { onScreenSelected(PocketPilotScreen.PEOPLE) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.People,
+                    contentDescription = "People"
+                )
+            },
+            label = { Text("People") }
         )
 
         NavigationBarItem(

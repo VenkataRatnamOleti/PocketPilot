@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.Checkbox
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,7 +30,8 @@ fun AddExpenseScreen(
     onExpenseAdded: (
         amount: Double,
         category: String,
-        description: String
+        description: String,
+        isProfit: Boolean
     ) -> Unit
 ) {
 
@@ -44,6 +46,7 @@ fun AddExpenseScreen(
     var description by remember {
         mutableStateOf("")
     }
+    var isProfit by remember { mutableStateOf(false) }
 
     var showAmountError by remember {
         mutableStateOf(false)
@@ -143,6 +146,11 @@ fun AddExpenseScreen(
                 singleLine = true
             )
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = isProfit, onCheckedChange = { isProfit = it })
+                Text("Record as profit / income")
+            }
+
             OutlinedTextField(
                 value = description,
 
@@ -188,7 +196,8 @@ fun AddExpenseScreen(
                         onExpenseAdded(
                             parsedAmount,
                             finalCategory,
-                            finalDescription
+                            finalDescription,
+                            isProfit
                         )
 
                         onBack()

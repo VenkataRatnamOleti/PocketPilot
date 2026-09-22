@@ -14,4 +14,16 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun isEmpty(): Boolean = expenseDao.count() == 0
 
     suspend fun delete(id: Int) = expenseDao.deleteExpense(id)
+
+    fun expensesBetween(startInclusive: Long, endExclusive: Long): Flow<List<ExpenseEntity>> =
+        expenseDao.getExpensesBetween(startInclusive, endExclusive)
+
+    suspend fun expensesForDay(dayStart: Long, dayEnd: Long): List<ExpenseEntity> =
+        expenseDao.getExpensesForDay(dayStart, dayEnd)
+
+    suspend fun expenseTotalBetween(startInclusive: Long, endExclusive: Long): Double =
+        expenseDao.getExpenseTotalBetween(startInclusive, endExclusive)
+
+    suspend fun profitTotalBetween(startInclusive: Long, endExclusive: Long): Double =
+        expenseDao.getProfitTotalBetween(startInclusive, endExclusive)
 }
